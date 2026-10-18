@@ -1,0 +1,1483 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>용량 탐정</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232D4FB3'/%3E%3Ccircle cx='14' cy='14' r='7' fill='none' stroke='white' stroke-width='3'/%3E%3Cpath d='M19 19l6 6' stroke='white' stroke-width='3.4' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+@font-face { font-family: "Plex KR"; src: url(/fonts/IBMPlexSansKR-Regular.woff2) format("woff2"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Plex KR"; src: url(/fonts/IBMPlexSansKR-SemiBold.woff2) format("woff2"); font-weight: 600; font-display: swap; }
+
+:root {
+  color-scheme: light;
+  --paper: #EEF2F6;
+  --surface: #FFFFFF;
+  --surface-2: #F6F8FB;
+  --ink: #18202E;
+  --ink-2: #4A5468;
+  --ink-3: #7D879A;
+  --line: #DCE2EA;
+  --line-2: #E9EDF2;
+  --accent: #2D4FB3;
+  --accent-ink: #223D8E;
+  --accent-soft: #E7ECF9;
+  --safe: #1F8A5B;   --safe-soft: #E2F2E9;
+  --review: #A86C0A; --review-soft: #FAEFD9;
+  --caution: #BD3F2C; --caution-soft: #FBE6E2;
+  --side-w: 232px;
+  font-family: "Plex KR", "IBM Plex Sans KR", "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", "Noto Sans KR", sans-serif;
+  font-size: 14px;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { height: 100%; margin: 0; background: var(--paper); color: var(--ink); }
+body { overflow: hidden; }
+button, input, select { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.num { font-variant-numeric: tabular-nums; }
+
+/* ---------- shell ---------- */
+.app { display: grid; grid-template-columns: var(--side-w) minmax(0, 1fr); height: 100vh; }
+.side { display: flex; flex-direction: column; gap: 22px; padding: 22px 14px 16px; overflow-y: auto; border-right: 1px solid var(--line); }
+.main { background: var(--surface); overflow-y: auto; position: relative; }
+
+.brand { display: flex; align-items: center; gap: 10px; padding: 0 6px; }
+.brand svg { flex: none; }
+.brand b { display: block; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.25; }
+.brand span { display: block; font-size: 12px; color: var(--ink-3); }
+
+.side h2 { margin: 0 6px 8px; font-size: 12px; font-weight: 600; color: var(--ink-3); }
+.drive { display: block; width: 100%; text-align: left; background: none; border: 1px solid transparent; border-radius: 10px; padding: 8px 8px 9px; cursor: pointer; }
+.drive:hover { background: rgba(255,255,255,.65); border-color: var(--line); }
+.drive .d-name { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.drive .d-name b { font-weight: 600; }
+.drive .d-name span { color: var(--ink-3); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.drive .d-bar { display: block; height: 6px; border-radius: 3px; background: #D9E0E9; margin: 6px 0 4px; overflow: hidden; }
+.drive .d-bar i { display: block; height: 100%; background: var(--accent); border-radius: 3px; }
+.drive.low .d-bar i { background: var(--caution); }
+.drive .d-meta { font-size: 12px; color: var(--ink-2); }
+
+.nav { display: flex; flex-direction: column; gap: 2px; }
+.nav button { display: flex; align-items: center; gap: 10px; width: 100%; padding: 9px 10px; border: 0; border-radius: 9px; background: none; text-align: left; cursor: pointer; color: var(--ink-2); }
+.nav button:hover { background: rgba(255,255,255,.6); color: var(--ink); }
+.nav button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 0 0 1px var(--line); }
+.nav svg { flex: none; width: 18px; height: 18px; }
+.nav .meta { margin-left: auto; font-size: 12px; font-weight: 400; color: var(--ink-3); font-variant-numeric: tabular-nums; }
+
+.side-foot { margin-top: auto; display: flex; flex-direction: column; gap: 10px; padding: 0 6px; font-size: 12px; color: var(--ink-3); }
+.side-foot p { margin: 0; }
+.admin-box { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 10px; color: var(--ink-2); }
+.admin-box .btn { width: 100%; margin-top: 8px; justify-content: center; }
+
+/* ---------- common ---------- */
+.view { padding: 26px 34px 40px; max-width: 1240px; }
+.vh { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; }
+.vh h1 { margin: 0; font-size: 21px; font-weight: 600; letter-spacing: -0.01em; line-height: 1.3; }
+.lede { margin: 4px 0 0; color: var(--ink-2); max-width: 64ch; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 7px 14px; border-radius: 8px; border: 1px solid var(--line); background: var(--surface); color: var(--ink); cursor: pointer; font-size: 13px; white-space: nowrap; line-height: 1.4; }
+.btn:hover { background: var(--surface-2); border-color: #C8D1DD; }
+.btn.primary { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
+.btn.primary:hover { background: var(--accent-ink); border-color: var(--accent-ink); }
+.btn:disabled { opacity: .5; cursor: default; }
+.btn svg { width: 15px; height: 15px; }
+.link { background: none; border: 0; padding: 2px 4px; margin: -2px -4px; border-radius: 4px; color: var(--accent); cursor: pointer; font-size: 13px; white-space: nowrap; }
+.link:hover { text-decoration: underline; }
+.pill { display: inline-flex; align-items: center; justify-content: center; height: 22px; padding: 0 9px; border-radius: 11px; font-size: 12px; font-weight: 600; white-space: nowrap; }
+.pill.safe { color: var(--safe); background: var(--safe-soft); }
+.pill.review { color: var(--review); background: var(--review-soft); }
+.pill.caution { color: var(--caution); background: var(--caution-soft); }
+.notice { display: flex; align-items: center; gap: 12px; justify-content: space-between; margin: 0 0 16px; padding: 10px 14px; border-radius: 10px; background: var(--review-soft); color: #6E4A0C; font-size: 13px; }
+.muted { color: var(--ink-3); }
+
+.progress { margin: 14px 0 6px; }
+.p-track { height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; position: relative; }
+.p-fill { height: 100%; background: var(--accent); border-radius: 3px; transition: width .4s ease; }
+.p-track.indet .p-fill { width: 30% !important; position: absolute; animation: indet 1.3s ease-in-out infinite; }
+@keyframes indet { from { left: -30%; } to { left: 100%; } }
+.p-text { display: flex; justify-content: space-between; gap: 16px; margin-top: 7px; font-size: 13px; color: var(--ink-2); }
+.p-cur { margin-top: 2px; font-size: 12px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; direction: ltr; }
+
+.scanbar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px; margin-top: 18px; }
+.scanbar label { font-size: 13px; color: var(--ink-2); }
+.scanbar select, .path-input { height: 34px; padding: 0 10px; border: 1px solid var(--line); border-radius: 8px; background: var(--surface); min-width: 0; }
+.scanbar select { max-width: 380px; }
+.path-input { width: 360px; }
+.check { display: inline-flex; align-items: center; gap: 6px; cursor: pointer; }
+.check input { width: 15px; height: 15px; accent-color: var(--accent); margin: 0; }
+
+.empty { margin: 34px 0; padding: 36px; text-align: center; border: 1px dashed var(--line); border-radius: 14px; color: var(--ink-2); }
+.empty h2 { margin: 0 0 6px; font-size: 16px; color: var(--ink); }
+.empty p { margin: 0 auto 16px; max-width: 46ch; }
+
+/* ---------- junk: magnifier gauge ---------- */
+.gauge { margin: 20px 0 22px; padding: 18px 20px 16px; border: 1px solid var(--line); border-radius: 14px; background: var(--surface-2); }
+.g-head { margin: 0 0 14px; font-size: 17px; font-weight: 600; letter-spacing: -0.01em; }
+.g-top { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 13px; color: var(--ink-2); }
+.g-top b { color: var(--ink); font-weight: 600; }
+.g-thin { display: flex; height: 12px; margin-top: 7px; border-radius: 6px; overflow: hidden; background: #E3E8EF; box-shadow: inset 0 0 0 1px #D6DDE6; }
+.g-thin .used { background: #B3BDCB; }
+.g-thin .junk { background: repeating-linear-gradient(-45deg, var(--accent) 0 3px, #6A84D6 3px 6px); }
+.g-conn { display: block; width: 100%; height: 30px; overflow: visible; }
+.g-zoom { display: flex; gap: 2px; height: 48px; border-radius: 10px; overflow: hidden; background: var(--line-2); }
+.g-seg { position: relative; flex: none; min-width: 3px; padding: 6px 8px; overflow: hidden; cursor: pointer; font-size: 12px; line-height: 1.3; white-space: nowrap; }
+.g-seg b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; }
+.g-seg span { display: block; overflow: hidden; text-overflow: ellipsis; opacity: .9; }
+.g-seg:hover { filter: brightness(1.07); }
+.g-zoom.waiting { align-items: center; justify-content: center; color: var(--ink-3); font-size: 13px; }
+.g-legend { display: flex; flex-wrap: wrap; gap: 6px 22px; margin-top: 12px; font-size: 13px; color: var(--ink-2); }
+.g-legend span { display: inline-flex; align-items: center; gap: 7px; }
+.g-legend i { width: 10px; height: 10px; border-radius: 3px; display: inline-block; }
+.g-legend b { color: var(--ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+.g-other { margin-top: 8px; font-size: 12px; color: var(--ink-3); }
+
+.filters { display: inline-flex; gap: 2px; padding: 3px; border-radius: 10px; background: var(--paper); margin-bottom: 6px; }
+.filters button { border: 0; background: none; padding: 5px 12px; border-radius: 8px; cursor: pointer; font-size: 13px; color: var(--ink-2); }
+.filters button.on { background: var(--surface); color: var(--ink); font-weight: 600; box-shadow: 0 1px 2px rgba(24,32,46,.08); }
+.filters em { font-style: normal; color: var(--ink-3); margin-left: 4px; font-variant-numeric: tabular-nums; }
+
+.findings { list-style: none; margin: 0; padding: 0; }
+.finding + .finding { border-top: 1px solid var(--line-2); }
+.f-head { display: grid; grid-template-columns: 70px minmax(0, 1fr) 120px 86px 18px; align-items: center; gap: 14px; width: 100%; padding: 13px 10px; border: 0; background: none; text-align: left; cursor: pointer; border-radius: 10px; }
+.f-head:hover { background: var(--surface-2); }
+.f-title b { display: block; font-size: 15px; font-weight: 600; line-height: 1.35; }
+.f-desc { display: block; margin-top: 1px; font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.f-bar { height: 6px; border-radius: 3px; background: var(--line-2); overflow: hidden; }
+.f-bar i { display: block; height: 100%; border-radius: 3px; }
+.f-size { text-align: right; font-weight: 600; font-size: 15px; font-variant-numeric: tabular-nums; }
+.f-size small { display: block; font-size: 11.5px; font-weight: 400; color: var(--ink-3); }
+.chev { width: 16px; height: 16px; color: var(--ink-3); transition: transform .18s ease; }
+.finding.open .chev { transform: rotate(180deg); }
+.f-body { padding: 4px 10px 18px 94px; }
+.f-tip { margin: 0 0 12px; padding: 11px 14px; border-radius: 10px; background: var(--surface-2); border: 1px solid var(--line-2); color: var(--ink); max-width: 78ch; }
+.f-tip h3 { margin: 0 0 3px; font-size: 13px; font-weight: 600; color: var(--ink-2); }
+.f-tip p { margin: 0; }
+.parts { width: 100%; border-collapse: collapse; font-size: 13px; }
+.parts td { padding: 6px 8px; border-bottom: 1px solid var(--line-2); vertical-align: middle; }
+.parts tr:last-child td { border-bottom: 0; }
+.parts .p-label { width: 28%; font-weight: 600; }
+.parts .p-path { color: var(--ink-2); word-break: break-all; }
+.parts .p-size { width: 92px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.parts .p-act { width: 1%; white-space: nowrap; text-align: right; }
+.denied { color: var(--review); font-size: 12px; }
+.f-actions { display: flex; gap: 8px; margin-top: 12px; flex-wrap: wrap; }
+
+.tools { margin-top: 26px; padding-top: 18px; border-top: 1px solid var(--line-2); }
+.tools h2 { margin: 0 0 10px; font-size: 14px; font-weight: 600; }
+.tools div { display: flex; gap: 8px; flex-wrap: wrap; }
+.clean-msg { padding: 20px 4px; color: var(--ink-2); }
+
+/* ---------- folder map ---------- */
+#view-map { height: 100%; display: flex; flex-direction: column; max-width: none; padding-bottom: 20px; }
+.crumbs { display: flex; align-items: center; gap: 8px; margin: 18px 0 10px; min-height: 34px; }
+.crumbs nav { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; min-width: 0; flex: 1; font-size: 14px; }
+.crumbs nav button { border: 0; background: none; padding: 3px 6px; border-radius: 6px; cursor: pointer; color: var(--ink-2); max-width: 260px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.crumbs nav button:hover { background: var(--surface-2); color: var(--ink); }
+.crumbs nav button:last-child { color: var(--ink); font-weight: 600; }
+.crumbs nav i { font-style: normal; color: var(--ink-3); }
+.map-wrap { flex: 1; display: grid; grid-template-columns: minmax(220px, 30%) minmax(0, 1fr); gap: 16px; min-height: 340px; }
+.map-list { overflow-y: auto; border: 1px solid var(--line); border-radius: 12px; padding: 4px; }
+.m-row { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 4px 10px; align-items: center; width: 100%; padding: 8px 9px; border: 0; background: none; border-radius: 8px; text-align: left; cursor: pointer; }
+.m-row:hover, .m-row.hl { background: var(--surface-2); }
+.m-row .sw { width: 12px; height: 12px; border-radius: 3px; }
+.m-row .nm { font-size: 13.5px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.m-row .sz { font-size: 13px; font-weight: 600; font-variant-numeric: tabular-nums; text-align: right; }
+.m-row .bar { grid-column: 2 / 4; display: flex; align-items: center; gap: 8px; font-size: 11.5px; color: var(--ink-3); }
+.m-row .bar span { flex: 1; height: 4px; border-radius: 2px; background: var(--line-2); overflow: hidden; }
+.m-row .bar span i { display: block; height: 100%; }
+.m-row .tag { display: inline-block; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--paper); color: var(--ink-2); font-size: 11px; vertical-align: 1px; }
+.m-row.static { cursor: default; }
+.map-canvas { position: relative; border-radius: 12px; overflow: hidden; background: var(--surface-2); border: 1px solid var(--line); min-height: 300px; user-select: none; }
+.map-canvas .placeholder { position: absolute; inset: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 30px; text-align: center; color: var(--ink-2); }
+.map-canvas .placeholder h2 { margin: 0; font-size: 16px; color: var(--ink); }
+.map-canvas .placeholder p { margin: 0; max-width: 44ch; }
+.tm { position: absolute; overflow: hidden; border-radius: 3px; cursor: pointer; }
+.tm.l1 { border-radius: 6px; }
+.tm.l1.dir { cursor: zoom-in; }
+.tm.static { cursor: default; }
+.tm-h { display: block; padding: 3px 7px; font-size: 12px; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-h em, .tm-l em { font-style: normal; font-weight: 400; opacity: .85; margin-left: 5px; }
+.tm.l2 { box-shadow: inset 0 0 0 1px rgba(255,255,255,.6); }
+.tm-l { display: block; padding: 3px 6px; font-size: 11.5px; line-height: 1.3; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.tm-l em { display: block; margin-left: 0; }
+.tm.files { background-image: repeating-linear-gradient(135deg, rgba(255,255,255,.2) 0 5px, transparent 5px 10px); }
+.map-hl { position: absolute; z-index: 5; pointer-events: none; border: 2px solid var(--ink); border-radius: 5px; box-shadow: 0 0 0 1px rgba(255,255,255,.8); }
+.map-foot { margin-top: 12px; font-size: 13px; color: var(--ink-2); display: flex; flex-direction: column; gap: 4px; }
+.map-foot p { margin: 0; }
+
+/* ---------- big files ---------- */
+.files-wrap { display: grid; grid-template-columns: 280px minmax(0, 1fr); gap: 28px; margin-top: 20px; align-items: start; }
+.types { position: sticky; top: 0; }
+.donut { display: block; width: 220px; height: 220px; margin: 0 auto 12px; }
+.donut path { cursor: pointer; transition: opacity .15s; }
+.donut text { font-family: inherit; }
+.legend { list-style: none; margin: 0; padding: 0; }
+.legend button { display: grid; grid-template-columns: 12px minmax(0, 1fr) auto; gap: 10px; align-items: center; width: 100%; padding: 6px 8px; border: 0; background: none; border-radius: 8px; cursor: pointer; text-align: left; font-size: 13px; }
+.legend button:hover { background: var(--surface-2); }
+.legend button.on { background: var(--accent-soft); }
+.legend .sw { width: 12px; height: 12px; border-radius: 3px; }
+.legend .v { font-variant-numeric: tabular-nums; color: var(--ink-2); }
+.files-head { display: flex; align-items: center; justify-content: space-between; gap: 14px; margin-bottom: 8px; }
+.files-head h2 { margin: 0; font-size: 16px; font-weight: 600; }
+.ftable { width: 100%; border-collapse: collapse; font-size: 13px; table-layout: fixed; }
+.ftable th { text-align: left; font-weight: 600; color: var(--ink-2); padding: 8px; border-bottom: 1px solid var(--line); font-size: 12.5px; }
+.ftable th button { border: 0; background: none; padding: 0; cursor: pointer; font-weight: 600; color: inherit; }
+.ftable th button.on { color: var(--accent); }
+.ftable td { padding: 8px; border-bottom: 1px solid var(--line-2); vertical-align: top; }
+.ftable tr:hover td { background: var(--surface-2); }
+.ftable .c-size, .ftable .c-date { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ftable .c-size { font-weight: 600; }
+.ftable .c-name b { display: block; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftable .c-name .dir { display: block; color: var(--ink-3); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.ftable .c-act { text-align: right; white-space: nowrap; }
+.old-tag { display: inline-block; font-style: normal; margin-left: 6px; padding: 0 6px; border-radius: 4px; background: var(--review-soft); color: var(--review); font-size: 11px; font-weight: 600; vertical-align: 1px; }
+.sw-dot { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 7px; vertical-align: 1px; }
+
+/* ---------- duplicates ---------- */
+.dupe-sum { margin: 22px 0 10px; font-size: 17px; font-weight: 600; }
+.dupe-sum span { display: block; font-size: 13px; font-weight: 400; color: var(--ink-2); margin-top: 2px; }
+.dgroup { padding: 14px 0; border-top: 1px solid var(--line-2); }
+.dg-head { display: flex; justify-content: space-between; gap: 16px; align-items: baseline; margin-bottom: 6px; }
+.dg-head b { font-size: 14.5px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dg-head span { font-size: 13px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.dg-head span strong { color: var(--ink); font-weight: 600; }
+.dfile { display: grid; grid-template-columns: minmax(0, 1fr) 110px 90px auto; gap: 12px; align-items: center; padding: 5px 0 5px 14px; font-size: 13px; border-left: 2px solid var(--line); }
+.dfile .dp { color: var(--ink-2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.dfile .dd { color: var(--ink-3); font-variant-numeric: tabular-nums; text-align: right; }
+.dfile .dt { font-size: 11.5px; color: var(--ink-3); }
+
+/* ---------- overlays ---------- */
+.tip { position: fixed; z-index: 50; pointer-events: none; max-width: 360px; padding: 10px 12px; border-radius: 9px; background: #18202E; color: #fff; font-size: 12.5px; line-height: 1.5; box-shadow: 0 8px 24px rgba(24,32,46,.25); }
+.tip b { display: block; font-size: 13.5px; font-weight: 600; }
+.tip .tp { color: #AAB4C6; word-break: break-all; }
+.tip .th { margin-top: 6px; padding-top: 6px; border-top: 1px solid rgba(255,255,255,.15); color: #F3D9A4; }
+.menu { position: fixed; z-index: 60; min-width: 190px; padding: 5px; border-radius: 10px; background: var(--surface); border: 1px solid var(--line); box-shadow: 0 10px 30px rgba(24,32,46,.18); }
+.menu button { display: block; width: 100%; padding: 8px 12px; border: 0; background: none; border-radius: 7px; text-align: left; cursor: pointer; font-size: 13px; }
+.menu button:hover { background: var(--surface-2); }
+.toast { position: fixed; z-index: 70; left: 50%; bottom: 26px; transform: translateX(-50%); max-width: min(560px, 90vw); padding: 11px 16px; border-radius: 10px; background: #18202E; color: #fff; font-size: 13px; box-shadow: 0 10px 30px rgba(24,32,46,.25); }
+
+@media (max-width: 1080px) {
+  .files-wrap { grid-template-columns: 1fr; }
+  .types { position: static; display: grid; grid-template-columns: 220px 1fr; gap: 20px; align-items: center; }
+  .f-head { grid-template-columns: 64px minmax(0, 1fr) 80px 18px; }
+  .f-head .f-bar { display: none; }
+  .f-body { padding-left: 10px; }
+}
+@media (max-width: 860px) {
+  .app { grid-template-columns: 1fr; grid-template-rows: auto 1fr; }
+  .side { flex-direction: row; flex-wrap: wrap; align-items: center; gap: 12px; padding: 12px 16px; border-right: 0; border-bottom: 1px solid var(--line); }
+  .side section, .side-foot { display: none; }
+  .nav { flex-direction: row; flex-wrap: wrap; }
+  .view { padding: 20px 18px 30px; }
+  .map-wrap { grid-template-columns: 1fr; grid-template-rows: 220px minmax(300px, 1fr); }
+}
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="brand">
+      <svg width="34" height="34" viewBox="0 0 34 34" aria-hidden="true">
+        <rect width="34" height="34" rx="9" fill="#2D4FB3"/>
+        <circle cx="15" cy="15" r="8" fill="#fff" fill-opacity=".14" stroke="#fff" stroke-width="2.6"/>
+        <path d="M15 7.9a7.1 7.1 0 0 1 7.1 7.1H15z" fill="#fff"/>
+        <path d="M21 21l6 6" stroke="#fff" stroke-width="3.2" stroke-linecap="round"/>
+      </svg>
+      <div><b>용량 탐정</b><span>쓸모없는 파일 찾기</span></div>
+    </div>
+
+    <section>
+      <h2>드라이브</h2>
+      <div id="drives"></div>
+    </section>
+
+    <nav class="nav" aria-label="화면">
+      <button data-view="junk" class="on">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 7h16M9 7V4.8c0-.4.4-.8.8-.8h4.4c.4 0 .8.4.8.8V7M6.5 7l.9 12.2c.1.5.5.8 1 .8h7.2c.5 0 .9-.3 1-.8L17.5 7"/><path d="M10 11v5M14 11v5"/></svg>
+        <span>정리 대상 찾기</span><span class="meta" id="nav-junk"></span>
+      </button>
+      <button data-view="map">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="3.5" y="4" width="17" height="16" rx="2"/><path d="M12 4v16M12 13h8.5M3.5 11H12M16.5 13v7"/></svg>
+        <span>폴더 지도</span><span class="meta" id="nav-map"></span>
+      </button>
+      <button data-view="files">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M14 3.5H7.5c-.8 0-1.5.7-1.5 1.5v14c0 .8.7 1.5 1.5 1.5h9c.8 0 1.5-.7 1.5-1.5V7.5z"/><path d="M14 3.5v4h4M9 17v-3M12 17v-6M15 17v-4"/></svg>
+        <span>큰 파일</span><span class="meta" id="nav-files"></span>
+      </button>
+      <button data-view="dupes">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"><rect x="8" y="3.5" width="12" height="14" rx="1.6"/><path d="M5.5 7.5H5c-.6 0-1 .4-1 1V19c0 .8.7 1.5 1.5 1.5H14c.6 0 1-.4 1-1v-.5"/></svg>
+        <span>중복 파일</span><span class="meta" id="nav-dupes"></span>
+      </button>
+    </nav>
+
+    <div class="side-foot">
+      <div id="admin-box"></div>
+      <p>이 프로그램은 파일을 지우지 않아요. 위치를 열어 직접 정리하세요.</p>
+      <p id="version"></p>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+    <!-- ===== 정리 대상 ===== -->
+    <section class="view" id="view-junk">
+      <header class="vh">
+        <div>
+          <h1>정리 대상 찾기</h1>
+          <p class="lede" id="junk-lede">임시 파일, 캐시, 휴지통처럼 지워도 되는 파일을 찾고 있어요.</p>
+        </div>
+        <button class="btn" id="junk-rescan">다시 검사</button>
+      </header>
+
+      <div class="gauge" id="gauge"></div>
+      <div class="notice" id="junk-admin" hidden>
+        <span>일부 폴더는 관리자 권한이 있어야 정확한 크기를 볼 수 있어요.</span>
+        <button class="btn" data-admin>관리자 권한으로 다시 실행</button>
+      </div>
+      <div class="filters" id="junk-filters" role="tablist" aria-label="안전도"></div>
+      <ol class="findings" id="junk-list"></ol>
+
+      <div class="tools">
+        <h2>Windows에 들어 있는 정리 도구</h2>
+        <div>
+          <button class="btn" data-tool="cleanmgr">디스크 정리 실행</button>
+          <button class="btn" data-tool="storage">저장소 설정 열기</button>
+          <button class="btn" data-tool="apps">설치된 앱 정리</button>
+          <button class="btn" data-tool="recyclebin">휴지통 열기</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 폴더 지도 ===== -->
+    <section class="view" id="view-map" hidden>
+      <header class="vh">
+        <div>
+          <h1>폴더 지도</h1>
+          <p class="lede">폴더가 차지하는 크기만큼 사각형으로 그려요. 큰 사각형부터 살펴보세요.</p>
+        </div>
+      </header>
+      <div class="scanbar">
+        <label for="map-target">분석할 곳</label>
+        <select id="map-target" class="js-target"></select>
+        <button class="btn primary js-start">분석 시작</button>
+        <button class="btn js-stop" hidden>중지</button>
+      </div>
+      <div class="progress js-progress" hidden></div>
+      <div class="crumbs" id="map-crumbs" hidden>
+        <button class="btn" id="map-up" title="상위 폴더 (Backspace)">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M6 11l6-6 6 6"/></svg>상위 폴더
+        </button>
+        <nav id="map-path" aria-label="현재 위치"></nav>
+        <button class="btn" id="map-explorer">탐색기에서 열기</button>
+      </div>
+      <div class="map-wrap" id="map-wrap">
+        <div class="map-list" id="map-list" aria-label="폴더 목록"></div>
+        <div class="map-canvas" id="map-canvas"></div>
+      </div>
+      <div class="map-foot" id="map-foot"></div>
+    </section>
+
+    <!-- ===== 큰 파일 ===== -->
+    <section class="view" id="view-files" hidden>
+      <header class="vh">
+        <div>
+          <h1>큰 파일</h1>
+          <p class="lede">가장 큰 파일과 종류별 용량을 보여드려요. 오래 안 쓴 큰 파일이 정리 1순위예요.</p>
+        </div>
+      </header>
+      <div class="scanbar" id="files-scanbar">
+        <label for="files-target">분석할 곳</label>
+        <select id="files-target" class="js-target"></select>
+        <button class="btn primary js-start">분석 시작</button>
+        <button class="btn js-stop" hidden>중지</button>
+      </div>
+      <div class="progress js-progress" hidden></div>
+      <div id="files-empty" class="empty">
+        <h2>먼저 드라이브를 분석해 주세요</h2>
+        <p>분석이 끝나면 가장 큰 파일 목록과 종류별(동영상, 사진, 설치 파일 등) 용량이 여기에 나와요.</p>
+      </div>
+      <div class="files-wrap" id="files-wrap" hidden>
+        <div class="types">
+          <svg class="donut" id="donut" viewBox="0 0 220 220" role="img" aria-label="종류별 용량"></svg>
+          <ul class="legend" id="legend"></ul>
+        </div>
+        <div>
+          <div class="files-head">
+            <h2 id="files-title">가장 큰 파일</h2>
+            <label class="check"><input type="checkbox" id="hide-system" checked> 시스템·프로그램 파일 숨기기</label>
+          </div>
+          <table class="ftable">
+            <colgroup><col><col style="width:96px"><col style="width:110px"><col style="width:86px"></colgroup>
+            <thead><tr>
+              <th>이름과 위치</th>
+              <th style="text-align:right"><button data-sort="size" class="on">크기</button></th>
+              <th style="text-align:right"><button data-sort="date">수정한 날짜</button></th>
+              <th></th>
+            </tr></thead>
+            <tbody id="files-body"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ===== 중복 파일 ===== -->
+    <section class="view" id="view-dupes" hidden>
+      <header class="vh">
+        <div>
+          <h1>중복 파일</h1>
+          <p class="lede">내용이 완전히 똑같은 파일을 찾아요. 하나만 남기면 얼마나 아낄 수 있는지 알려드려요.</p>
+        </div>
+      </header>
+      <div class="scanbar">
+        <label for="dupe-root">검사할 폴더</label>
+        <input id="dupe-root" class="path-input" spellcheck="false">
+        <button class="btn" id="dupe-pick" hidden>찾아보기</button>
+        <label for="dupe-min">최소 크기</label>
+        <select id="dupe-min">
+          <option value="1048576">1 MB 이상</option>
+          <option value="10485760">10 MB 이상</option>
+          <option value="104857600">100 MB 이상</option>
+        </select>
+        <label class="check"><input type="checkbox" id="dupe-skipapp" checked> AppData 폴더 빼기</label>
+        <button class="btn primary" id="dupe-start">중복 찾기</button>
+        <button class="btn" id="dupe-stop" hidden>중지</button>
+      </div>
+      <div class="progress" id="dupe-progress" hidden></div>
+      <div id="dupe-result"></div>
+    </section>
+  </main>
+</div>
+
+<div class="tip" id="tip" hidden></div>
+<div class="menu" id="menu" hidden></div>
+<div class="toast" id="toast" role="status" hidden></div>
+
+<script>
+'use strict';
+const $ = (s, el = document) => el.querySelector(s);
+const $$ = (s, el = document) => Array.from(el.querySelectorAll(s));
+const TOKEN = new URLSearchParams(location.search).get('t') || '';
+const esc = s => String(s == null ? '' : s).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+// ---------------------------------------------------------------- api
+async function api(path, body) {
+  const opt = { headers: { 'X-Token': TOKEN } };
+  if (body !== undefined) {
+    opt.method = 'POST';
+    opt.headers['Content-Type'] = 'application/json';
+    opt.body = JSON.stringify(body);
+  }
+  const r = await fetch(path, opt);
+  let data = null;
+  try { data = await r.json(); } catch (e) { /* not json */ }
+  if (!r.ok) throw new Error((data && data.error) || ('요청을 처리하지 못했어요 (' + r.status + ')'));
+  return data;
+}
+
+// ---------------------------------------------------------------- format
+function fmtBytes(b) {
+  if (b == null || isNaN(b)) return '–';
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = Math.max(0, b), i = 0;
+  while (v >= 1024 && i < units.length - 1) { v /= 1024; i++; }
+  const digits = i === 0 ? 0 : v >= 100 ? 0 : 1;
+  return v.toFixed(digits) + ' ' + units[i];
+}
+const fmtNum = n => Number(n || 0).toLocaleString('ko-KR');
+function fmtDuration(ms) {
+  const s = Math.round(ms / 1000);
+  if (ms < 10000) return Math.max(0.1, ms / 1000).toFixed(1) + '초';
+  if (s < 60) return s + '초';
+  const m = Math.floor(s / 60);
+  return m + '분' + (s % 60 ? ' ' + (s % 60) + '초' : '');
+}
+function fmtDate(unix) {
+  if (!unix) return '–';
+  const d = new Date(unix * 1000);
+  return d.getFullYear() + '. ' + (d.getMonth() + 1) + '. ' + d.getDate() + '.';
+}
+function ageText(unix) {
+  if (!unix) return '';
+  const days = (Date.now() / 1000 - unix) / 86400;
+  if (days >= 730) return Math.floor(days / 365) + '년 넘게 그대로';
+  if (days >= 365) return '1년 넘게 그대로';
+  return '';
+}
+function shortPath(p, max) {
+  max = max || 70;
+  if (!p || p.length <= max) return p || '';
+  const head = Math.floor(max * 0.38);
+  return p.slice(0, head) + '…' + p.slice(p.length - (max - head - 1));
+}
+const sepOf = p => (p && p.indexOf('\\') >= 0 ? '\\' : '/');
+function joinP(dir, name) {
+  const sep = sepOf(dir);
+  return dir.endsWith('\\') || dir.endsWith('/') ? dir + name : dir + sep + name;
+}
+const normP = p => (p || '').replace(/[\\/]+$/, '').toLowerCase();
+
+// ---------------------------------------------------------------- colors
+function rgb(hex) { const n = parseInt(hex.slice(1), 16); return [n >> 16 & 255, n >> 8 & 255, n & 255]; }
+function mix(c, t) { return c.map(v => Math.round(v + (255 - v) * t)); }
+function css(c) { return 'rgb(' + c.join(',') + ')'; }
+function textOn(c) { return (0.299 * c[0] + 0.587 * c[1] + 0.114 * c[2]) > 165 ? '#18202E' : '#FFFFFF'; }
+const PALETTE = ['#3E6FB0', '#2F8F87', '#C2672A', '#7E5AA6', '#4F9140', '#A87A1F', '#B54C59', '#3488B5', '#83664D', '#5D6E8C', '#9C5289', '#468766'].map(rgb);
+const FILES_COLOR = rgb('#7A8599');
+const MORE_COLOR = rgb('#C9D0DA');
+const SAFETY = {
+  safe: { name: '안전', long: '바로 지워도 되는 것', color: rgb('#1F8A5B') },
+  review: { name: '확인 후', long: '확인하고 지울 것', color: rgb('#A86C0A') },
+  caution: { name: '주의', long: '전용 도구로 정리할 것', color: rgb('#BD3F2C') },
+};
+const TYPES = [
+  ['동영상', '#3E6FB0'], ['사진·이미지', '#2F8F87'], ['음악·오디오', '#7E5AA6'], ['문서', '#4F9140'],
+  ['압축 파일', '#A87A1F'], ['실행·설치 파일', '#C2672A'], ['디스크 이미지', '#B54C59'], ['게임', '#9C5289'],
+  ['휴지통', '#83664D'], ['시스템·프로그램', '#5D6E8C'], ['기타', '#A3ABB9'],
+].map(([name, hex]) => ({ name, color: rgb(hex) }));
+
+// ---------------------------------------------------------------- state
+const st = {
+  info: null,
+  view: 'junk',
+  junk: null, junkSig: '', junkFilter: 'all', open: new Set(),
+  target: '',
+  scan: null,
+  map: { gen: null, id: 0, data: null, cache: new Map(), rects: [], l1: new Map(), hover: null },
+  files: { gen: null, type: -1, hideSystem: true, data: null, sort: 'size' },
+  dupes: { status: null, shown: 40 },
+};
+
+// ---------------------------------------------------------------- ui helpers
+let toastTimer = 0;
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.hidden = false;
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { t.hidden = true; }, 4200);
+}
+function showTip(html, x, y) {
+  const tip = $('#tip');
+  tip.innerHTML = html;
+  tip.hidden = false;
+  const w = tip.offsetWidth, h = tip.offsetHeight;
+  let left = x + 16, top = y + 18;
+  if (left + w > innerWidth - 8) left = x - w - 14;
+  if (top + h > innerHeight - 8) top = y - h - 12;
+  tip.style.left = Math.max(8, left) + 'px';
+  tip.style.top = Math.max(8, top) + 'px';
+}
+function hideTip() { $('#tip').hidden = true; }
+function showMenu(x, y, items) {
+  const m = $('#menu');
+  m.innerHTML = items.map((it, i) => '<button data-mi="' + i + '">' + esc(it.label) + '</button>').join('');
+  m.hidden = false;
+  const w = m.offsetWidth, h = m.offsetHeight;
+  m.style.left = Math.min(x, innerWidth - w - 8) + 'px';
+  m.style.top = Math.min(y, innerHeight - h - 8) + 'px';
+  m.onclick = e => {
+    const b = e.target.closest('[data-mi]');
+    if (!b) return;
+    m.hidden = true;
+    items[+b.dataset.mi].action();
+  };
+}
+function hideMenu() { $('#menu').hidden = true; }
+async function openPath(path, select) {
+  try { await api('/api/open', { path, select: !!select }); } catch (e) { toast(e.message); }
+}
+async function launch(what) {
+  try { await api('/api/launch', { what }); } catch (e) { toast(e.message); }
+}
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+  } catch (e) {
+    const ta = document.createElement('textarea');
+    ta.value = text; document.body.appendChild(ta); ta.select();
+    try { document.execCommand('copy'); } catch (e2) { /* ignore */ }
+    ta.remove();
+  }
+  toast('경로를 복사했어요.');
+}
+async function relaunchAdmin() {
+  try {
+    await api('/api/admin', {});
+    toast('관리자 권한으로 새 창을 여는 중이에요. 이 창은 곧 닫혀요.');
+    if (st.info && st.info.mode === 'browser') setTimeout(() => window.close(), 1500);
+  } catch (e) { toast(e.message); }
+}
+
+// ---------------------------------------------------------------- navigation
+function switchView(v) {
+  st.view = v;
+  for (const b of $$('.nav button')) b.classList.toggle('on', b.dataset.view === v);
+  for (const s of $$('.view')) s.hidden = s.id !== 'view-' + v;
+  hideTip(); hideMenu();
+  $('#main').scrollTop = 0;
+  if (v === 'junk') requestAnimationFrame(() => renderGauge());
+  if (v === 'map') requestAnimationFrame(drawMap);
+}
+
+// ---------------------------------------------------------------- sidebar
+function renderDrives() {
+  const el = $('#drives');
+  const drives = (st.info && st.info.drives) || [];
+  if (!drives.length) { el.innerHTML = '<p class="muted" style="margin:0 6px">드라이브 정보를 읽지 못했어요.</p>'; return; }
+  el.innerHTML = drives.map(d => {
+    const used = d.total - d.free;
+    const pct = d.total ? used / d.total * 100 : 0;
+    const name = d.path.replace(/[\\/]+$/, '') || d.path;
+    const label = d.label || (d.type === 'removable' ? '이동식 디스크' : '로컬 디스크');
+    return '<button class="drive' + (d.free / d.total < 0.1 ? ' low' : '') + '" data-drive="' + esc(d.path) + '" title="폴더 지도에서 분석하기">' +
+      '<span class="d-name"><b>' + esc(name) + '</b><span>' + esc(label) + '</span></span>' +
+      '<span class="d-bar"><i style="width:' + pct.toFixed(1) + '%"></i></span>' +
+      '<span class="d-meta num">' + fmtBytes(d.free) + ' 남음 / ' + fmtBytes(d.total) + '</span></button>';
+  }).join('');
+}
+function renderAdmin() {
+  const box = $('#admin-box');
+  if (!st.info) { box.innerHTML = ''; return; }
+  box.innerHTML = st.info.admin
+    ? '<div class="admin-box">관리자 권한으로 실행 중이라 시스템 폴더까지 볼 수 있어요.</div>'
+    : '<div class="admin-box">일부 시스템 폴더는 관리자 권한으로 실행해야 정확히 보여요.<button class="btn" data-admin>관리자 권한으로 다시 실행</button></div>';
+}
+
+// ================================================================ JUNK
+async function startJunk() {
+  st.junk = null; st.junkSig = '';
+  renderJunk();
+  try { await api('/api/junk/start', {}); } catch (e) { toast(e.message); return; }
+  pollJunk();
+}
+let junkTimer = 0;
+async function pollJunk() {
+  clearTimeout(junkTimer);
+  try { st.junk = await api('/api/junk'); } catch (e) { junkTimer = setTimeout(pollJunk, 1000); return; }
+  renderJunk();
+  if (st.junk.running || !st.junk.started) junkTimer = setTimeout(pollJunk, 350);
+}
+function visibleCats() {
+  const cats = (st.junk && st.junk.cats) || [];
+  return cats.filter(c => c.found && (c.bytes > 0 || c.denied)).sort((a, b) => b.bytes - a.bytes);
+}
+function sysDriveInfo() {
+  if (!st.info) return null;
+  const sd = normP(st.info.systemDrive);
+  const drives = st.info.drives || [];
+  return drives.find(d => normP(d.path) === sd) || drives[0] || null;
+}
+function partOnDrive(p, drive) {
+  if (!drive) return true;
+  const root = normP(drive.path);
+  if (p.path === 'shell:RecycleBinFolder') return normP(p.label.slice(0, 2)) === root;
+  return normP(p.path).startsWith(root);
+}
+function junkSums(cats) {
+  const sums = { safe: 0, review: 0, caution: 0 };
+  for (const c of cats) sums[c.safety] += c.bytes;
+  return sums;
+}
+
+function renderJunk() {
+  const j = st.junk;
+  const cats = visibleCats();
+  const sums = junkSums(cats);
+  const total = sums.safe + sums.review + sums.caution;
+  const running = !j || j.running || !j.started;
+
+  $('#junk-lede').textContent = running
+    ? '임시 파일, 캐시, 휴지통처럼 지워도 되는 파일을 찾고 있어요' + (j && j.total ? ' (' + j.completed + ' / ' + j.total + ')' : '') + '…'
+    : '항목 ' + (j ? j.total : 0) + '개를 ' + fmtDuration(j ? j.elapsedMs : 0) + ' 만에 확인했어요. 항목을 누르면 위치와 정리 방법이 나와요.';
+  $('#junk-rescan').disabled = running;
+  $('#nav-junk').textContent = !running && total > 0 ? fmtBytes(total) : '';
+  $('#junk-admin').hidden = !(st.info && !st.info.admin && cats.some(c => c.denied));
+
+  renderGauge();
+
+  // filters
+  const counts = { all: cats.length, safe: 0, review: 0, caution: 0 };
+  for (const c of cats) counts[c.safety]++;
+  const fl = [['all', '전체'], ['safe', '안전'], ['review', '확인 후'], ['caution', '주의']];
+  $('#junk-filters').innerHTML = fl.map(([k, n]) =>
+    '<button role="tab" data-filter="' + k + '" class="' + (st.junkFilter === k ? 'on' : '') + '" aria-selected="' + (st.junkFilter === k) + '">' + n + '<em>' + counts[k] + '</em></button>').join('');
+
+  // list (re-render only when the data changed, so open rows and focus survive polling)
+  const sig = JSON.stringify([st.junkFilter, running, cats.map(c => [c.id, c.bytes, c.files, c.denied])]);
+  if (sig === st.junkSig) return;
+  st.junkSig = sig;
+  const shown = cats.filter(c => st.junkFilter === 'all' || c.safety === st.junkFilter);
+  const maxBytes = Math.max(1, ...cats.map(c => c.bytes));
+  const list = $('#junk-list');
+  if (!running && cats.length === 0) {
+    list.innerHTML = '<li class="clean-msg">지울 만한 파일을 거의 찾지 못했어요. 깔끔하게 쓰고 계시네요. 폴더 지도에서 큰 폴더를 살펴보세요.</li>';
+    return;
+  }
+  list.innerHTML = shown.map(c => findingHTML(c, maxBytes)).join('') ||
+    (cats.length ? '<li class="clean-msg">이 분류에 해당하는 항목이 없어요.</li>' : '');
+}
+
+function findingHTML(c, maxBytes) {
+  const s = SAFETY[c.safety];
+  const open = st.open.has(c.id);
+  const pct = Math.max(1.5, c.bytes / maxBytes * 100);
+  const parts = (c.parts || []).map(p => {
+    const canOpen = p.path && (p.path === 'shell:RecycleBinFolder' || !p.denied || p.bytes > 0);
+    const openBtn = canOpen
+      ? '<button class="link" data-open="' + esc(p.path) + '"' + (p.isFile ? ' data-select="1"' : '') + '>' + (p.isFile ? '위치 열기' : '폴더 열기') + '</button>'
+      : '';
+    const shownPath = p.path === 'shell:RecycleBinFolder' ? '휴지통' : shortPath(p.path, 64);
+    return '<tr><td class="p-label">' + esc(p.label) + '</td>' +
+      '<td class="p-path" title="' + esc(p.path) + '">' + esc(shownPath) + (p.denied ? '<div class="denied">접근 권한이 없어 일부만 셌어요</div>' : '') + '</td>' +
+      '<td class="p-size">' + fmtBytes(p.bytes) + '</td><td class="p-act">' + openBtn + '</td></tr>';
+  }).join('');
+  const actions = [];
+  if (c.tool) actions.push('<button class="btn primary" data-tool="' + esc(c.tool) + '">' + esc(c.toolLabel || '정리 도구 열기') + '</button>');
+  return '<li class="finding' + (open ? ' open' : '') + '" data-id="' + esc(c.id) + '">' +
+    '<button class="f-head" aria-expanded="' + open + '">' +
+      '<span class="pill ' + c.safety + '">' + s.name + '</span>' +
+      '<span class="f-title"><b>' + esc(c.name) + '</b><span class="f-desc">' + esc(c.desc) + '</span></span>' +
+      '<span class="f-bar"><i style="width:' + pct.toFixed(1) + '%;background:' + css(s.color) + '"></i></span>' +
+      (c.bytes === 0 && c.denied
+        ? '<span class="f-size">–<small>권한이 필요해요</small></span>'
+        : '<span class="f-size">' + fmtBytes(c.bytes) + (c.files ? '<small>파일 ' + fmtNum(c.files) + '개</small>' : '') + '</span>') +
+      '<svg class="chev" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M6 9l6 6 6-6"/></svg>' +
+    '</button>' +
+    '<div class="f-body"' + (open ? '' : ' hidden') + '>' +
+      '<div class="f-tip"><h3>정리 방법</h3><p>' + esc(c.tip) + '</p></div>' +
+      (parts ? '<table class="parts"><tbody>' + parts + '</tbody></table>' : '') +
+      (actions.length ? '<div class="f-actions">' + actions.join('') + '</div>' : '') +
+    '</div></li>';
+}
+
+function toggleFinding(li) {
+  const id = li.dataset.id;
+  const open = !st.open.has(id);
+  if (open) st.open.add(id); else st.open.delete(id);
+  li.classList.toggle('open', open);
+  $('.f-body', li).hidden = !open;
+  $('.f-head', li).setAttribute('aria-expanded', open);
+}
+
+// The magnifier gauge: the whole drive on top, the junk part zoomed in below.
+function renderGauge() {
+  const el = $('#gauge');
+  if (!el || el.offsetParent === null) return;
+  const j = st.junk;
+  const running = !j || j.running || !j.started;
+  const cats = visibleCats();
+  const drive = sysDriveInfo();
+  const W = Math.max(200, el.clientWidth - 40);
+
+  // junk on the system drive, per category
+  const segs = [];
+  let onDrive = 0, elsewhere = 0;
+  for (const c of cats) {
+    let b = 0;
+    for (const p of c.parts || []) { if (partOnDrive(p, drive)) b += p.bytes; else elsewhere += p.bytes; }
+    if (b > 0) { segs.push({ c, b }); onDrive += b; }
+  }
+  const order = { safe: 0, review: 1, caution: 2 };
+  segs.sort((a, b) => order[a.c.safety] - order[b.c.safety] || b.b - a.b);
+  const sums = { safe: 0, review: 0, caution: 0 };
+  for (const s of segs) sums[s.c.safety] += s.b;
+
+  let html = '';
+  const driveName = drive ? (drive.path.replace(/[\\/]+$/, '') || drive.path) : '';
+  if (running) {
+    html += '<p class="g-head">' + (driveName ? esc(driveName) + ' 드라이브를 살펴보는 중이에요…' : '살펴보는 중이에요…') + '</p>';
+  } else if (onDrive > 0) {
+    html += '<p class="g-head">' + (driveName ? esc(driveName) + ' 드라이브에서 ' : '') + '정리할 수 있는 후보 <span class="num">' + fmtBytes(onDrive) + '</span>를 찾았어요</p>';
+  } else {
+    html += '<p class="g-head">정리할 만한 파일이 거의 없어요</p>';
+  }
+
+  // top bar: the whole drive
+  let jx0 = 0, jx1 = W;
+  if (drive && drive.total > 0) {
+    const used = drive.total - drive.free;
+    const junkShare = Math.min(onDrive, used) / drive.total;
+    let junkPx = Math.max(onDrive > 0 ? 6 : 0, junkShare * W);
+    const usedPx = Math.max(junkPx, used / drive.total * W);
+    jx1 = usedPx; jx0 = usedPx - junkPx;
+    html += '<div class="g-top"><span><b>' + esc(driveName) + '</b> 전체 ' + fmtBytes(drive.total) + ' 중 ' + fmtBytes(used) + ' 사용</span><span>남은 공간 <b class="num">' + fmtBytes(drive.free) + '</b></span></div>';
+    html += '<div class="g-thin" aria-hidden="true"><i class="used" style="width:' + jx0.toFixed(1) + 'px"></i><i class="junk" style="width:' + (jx1 - jx0).toFixed(1) + 'px"></i></div>';
+    html += '<svg class="g-conn" viewBox="0 0 ' + W + ' 30" preserveAspectRatio="none" aria-hidden="true">' +
+      '<polygon points="' + jx0 + ',0 ' + jx1 + ',0 ' + W + ',30 0,30" fill="#2D4FB3" fill-opacity="0.07"/>' +
+      '<line x1="' + jx0 + '" y1="0" x2="0" y2="30" stroke="#2D4FB3" stroke-opacity=".38" vector-effect="non-scaling-stroke"/>' +
+      '<line x1="' + jx1 + '" y1="0" x2="' + W + '" y2="30" stroke="#2D4FB3" stroke-opacity=".38" vector-effect="non-scaling-stroke"/></svg>';
+  }
+
+  // zoomed bar: junk by category
+  if (onDrive > 0) {
+    const gaps = (segs.length - 1) * 2;
+    const avail = W - gaps;
+    const shades = [0, 0.16, 0.3];
+    const seen = { safe: 0, review: 0, caution: 0 };
+    html += '<div class="g-zoom">' + segs.map(s => {
+      const w = Math.max(3, s.b / onDrive * avail);
+      const base = SAFETY[s.c.safety].color;
+      const col = mix(base, shades[seen[s.c.safety]++ % 3]);
+      const label = w >= 86 ? '<b>' + esc(s.c.name) + '</b><span class="num">' + fmtBytes(s.b) + '</span>' : '';
+      return '<div class="g-seg" data-cat="' + esc(s.c.id) + '" style="width:' + w.toFixed(1) + 'px;background:' + css(col) + ';color:' + textOn(col) + '">' + label + '</div>';
+    }).join('') + '</div>';
+    html += '<div class="g-legend">' + ['safe', 'review', 'caution'].filter(k => sums[k] > 0).map(k =>
+      '<span><i style="background:' + css(SAFETY[k].color) + '"></i>' + SAFETY[k].long + ' <b>' + fmtBytes(sums[k]) + '</b></span>').join('') + '</div>';
+    if (elsewhere > 0) html += '<div class="g-other">다른 드라이브에도 정리 후보가 ' + fmtBytes(elsewhere) + ' 더 있어요. 아래 목록에 함께 나와요.</div>';
+  } else if (running) {
+    html += '<div class="g-zoom waiting">찾는 중…</div>';
+  } else if (elsewhere > 0) {
+    html += '<div class="g-other">다른 드라이브에 정리 후보가 ' + fmtBytes(elsewhere) + ' 있어요. 아래 목록을 확인하세요.</div>';
+  }
+  el.innerHTML = html;
+}
+
+// ================================================================ SCAN (map + files)
+function fillTargets() {
+  const info = st.info || {};
+  const opts = [];
+  for (const d of info.drives || []) {
+    const name = d.path.replace(/[\\/]+$/, '') || d.path;
+    opts.push([d.path, name + ' 드라이브 전체 (' + fmtBytes(d.total - d.free) + ' 사용 중)']);
+  }
+  if (info.profile) opts.push([info.profile, '내 사용자 폴더 (' + info.profile + ')']);
+  if (st.customTarget) opts.push([st.customTarget, st.customTarget]);
+  opts.push(['__pick', '다른 폴더 고르기…']);
+  if (!st.target) {
+    const sd = sysDriveInfo();
+    st.target = sd ? sd.path : (opts[0] ? opts[0][0] : '');
+  }
+  const html = opts.map(([v, l]) => '<option value="' + esc(v) + '">' + esc(l) + '</option>').join('');
+  for (const sel of $$('.js-target')) { sel.innerHTML = html; sel.value = st.target; }
+}
+async function onTargetChange(sel) {
+  if (sel.value === '__pick') {
+    let path = '';
+    if (st.info && st.info.canPick) {
+      try { path = (await api('/api/pickfolder')).path; } catch (e) { toast(e.message); }
+    } else {
+      path = prompt('분석할 폴더 경로를 입력하세요', (st.info && st.info.profile) || '') || '';
+    }
+    if (path) { st.customTarget = path; st.target = path; }
+    fillTargets();
+    return;
+  }
+  st.target = sel.value;
+  for (const s of $$('.js-target')) s.value = st.target;
+}
+async function startScan(root) {
+  if (root) { st.target = root; fillTargets(); }
+  if (!st.target) return;
+  try { await api('/api/scan/start', { root: st.target }); } catch (e) { toast(e.message); return; }
+  st.map.data = null; st.map.gen = null; st.map.cache.clear(); st.files.data = null; st.files.gen = null;
+  st.scan = null;
+  renderCrumbs(); drawMap(); renderMapFoot(); renderFiles();
+  pollScan();
+}
+let scanTimer = 0;
+async function pollScan() {
+  clearTimeout(scanTimer);
+  let s;
+  try { s = await api('/api/scan'); } catch (e) { scanTimer = setTimeout(pollScan, 1500); return; }
+  st.scan = s;
+  renderScanProgress();
+  if (s.started && s.done) {
+    if (st.map.gen !== s.gen) {
+      st.map.gen = s.gen;
+      st.map.cache.clear();
+      try { await openNode(0); } catch (e) { toast(e.message); }
+      loadFiles();
+    }
+  } else if (s.started) {
+    scanTimer = setTimeout(pollScan, 450);
+  }
+}
+function renderScanProgress() {
+  const s = st.scan;
+  const running = !!(s && s.started && s.running);
+  for (const b of $$('.js-start')) {
+    b.hidden = running;
+    b.textContent = s && s.done ? '다시 분석' : '분석 시작';
+    b.classList.toggle('primary', !(s && s.done));
+  }
+  for (const b of $$('.js-stop')) b.hidden = !running;
+  for (const sel of $$('.js-target')) sel.disabled = running;
+  for (const el of $$('.js-progress')) {
+    el.hidden = !running;
+    if (!running) continue;
+    const pct = s.percent;
+    el.innerHTML = '<div class="p-track' + (pct < 0 ? ' indet' : '') + '"><div class="p-fill" style="width:' + Math.max(1, pct) + '%"></div></div>' +
+      '<div class="p-text"><span>파일 <b class="num">' + fmtNum(s.files) + '</b>개, <b class="num">' + fmtBytes(s.bytes) + '</b> 확인했어요</span>' +
+      '<span class="num">' + (pct >= 0 ? Math.floor(pct) + '% · ' : '') + fmtDuration(s.elapsedMs) + '</span></div>' +
+      '<div class="p-cur" title="' + esc(s.current) + '">' + esc(s.current) + '</div>';
+  }
+  const done = s && s.done && s.summary;
+  $('#nav-map').textContent = running ? '분석 중' : done ? (s.root.replace(/[\\/]+$/, '').split(/[\\/]/).pop() || s.root) : '';
+  if (running && !st.map.data) drawMap();
+  if (running) renderMapFoot();
+  if (st.view === 'files' || running) renderFiles();
+}
+
+// ---- map data
+async function openNode(id) {
+  let d = st.map.cache.get(id);
+  if (!d) {
+    d = await api('/api/scan/node?id=' + id + '&depth=2&limit=40');
+    st.map.cache.set(id, d);
+  }
+  st.map.id = id;
+  st.map.data = d;
+  renderCrumbs();
+  drawMap();
+  renderMapFoot();
+}
+function itemsOf(n) {
+  const items = [];
+  for (const k of n.kids || []) if (k.size > 0) items.push({ kind: 'dir', node: k, size: k.size, name: k.name });
+  if (n.own > 0) items.push({ kind: 'files', node: n, size: n.own, name: '파일 ' + fmtNum(n.ownFiles) + '개' });
+  if (n.more > 0 && n.moreSize > 0) items.push({ kind: 'more', node: n, size: n.moreSize, name: '작은 폴더 ' + fmtNum(n.more) + '개' });
+  items.sort((a, b) => b.size - a.size);
+  return items;
+}
+function squarify(items, x, y, w, h) {
+  const out = new Array(items.length).fill(null);
+  let total = 0;
+  for (const it of items) total += it.size;
+  if (total <= 0 || w <= 0 || h <= 0) return out;
+  const scale = (w * h) / total;
+  let i = 0;
+  while (i < items.length) {
+    const side = Math.min(w, h);
+    if (side <= 0) break;
+    let j = i, sum = 0, worst = Infinity;
+    const maxA = items[i].size * scale;
+    while (j < items.length) {
+      const a = items[j].size * scale;
+      const ns = sum + a;
+      const nw = Math.max((side * side * maxA) / (ns * ns), (ns * ns) / (side * side * a));
+      if (j > i && nw > worst) break;
+      worst = nw; sum = ns; j++;
+    }
+    if (w >= h) {
+      const cw = sum / h; let yy = y;
+      for (let k = i; k < j; k++) { const ih = items[k].size * scale / cw; out[k] = { x, y: yy, w: cw, h: ih }; yy += ih; }
+      x += cw; w -= cw;
+    } else {
+      const rh = sum / w; let xx = x;
+      for (let k = i; k < j; k++) { const iw = items[k].size * scale / rh; out[k] = { x: xx, y, w: iw, h: rh }; xx += iw; }
+      y += rh; h -= rh;
+    }
+    i = j;
+  }
+  return out;
+}
+
+const HINTS = {
+  'windows': 'Windows 시스템 폴더예요. 직접 지우면 안 돼요.',
+  'winsxs': 'Windows 구성 요소 저장소예요. 같은 파일이 여러 번 세어져 실제보다 크게 보여요. 직접 지우지 말고 디스크 정리의 "Windows 업데이트 정리"를 쓰세요.',
+  'installer': '프로그램 설치와 제거에 필요한 파일이에요. 지우면 안 돼요.',
+  'program files': '설치된 프로그램이에요. 정리하려면 설정 > 앱에서 제거하세요.',
+  'program files (x86)': '설치된 프로그램이에요. 정리하려면 설정 > 앱에서 제거하세요.',
+  'programdata': '여러 프로그램이 같이 쓰는 데이터예요. 함부로 지우지 마세요.',
+  'appdata': '앱 설정과 캐시예요. 지워도 되는 캐시는 "정리 대상 찾기"에 나와요.',
+  '$recycle.bin': '휴지통이에요. 휴지통 비우기로 정리하세요.',
+  'system volume information': '시스템 복원 지점이 저장되는 곳이에요. 시스템 보호 설정에서 관리하세요.',
+  'windows.old': '이전 Windows 설치예요. 설정 > 저장소 > 임시 파일에서 지울 수 있어요.',
+  'downloads': '다운로드 폴더예요. 설치 파일과 오래된 파일부터 확인해 보세요.',
+  'node_modules': '개발용 패키지 폴더예요. 필요하면 다시 설치할 수 있어요.',
+  'steamapps': '스팀 게임 폴더예요. 안 하는 게임은 스팀에서 제거하세요.',
+  'temp': '임시 파일 폴더예요. "정리 대상 찾기"에서 확인하세요.',
+  'onedrive': 'OneDrive 동기화 폴더예요. 온라인 전용 파일은 PC 공간을 쓰지 않아요.',
+  '카카오톡 받은 파일': '카카오톡으로 받은 파일이에요. 필요한 것만 남기고 정리하세요.',
+};
+function hintFor(name, kind) {
+  const h = HINTS[(name || '').toLowerCase()];
+  if (h) return h;
+  if (kind === 2) return '게임이 설치된 폴더예요. 안 하는 게임은 게임 런처에서 제거하세요.';
+  if (kind === 1) return '시스템이나 프로그램 폴더예요. 직접 지우지 마세요.';
+  if (kind === 3) return '휴지통에 있는 파일이에요.';
+  return '';
+}
+function tagFor(name, kind) {
+  const n = (name || '').toLowerCase();
+  if (kind === 2) return '게임';
+  if (kind === 1 || n === 'windows' || n === 'program files' || n === 'program files (x86)' || n === 'programdata') return '시스템';
+  if (kind === 3 || n === '$recycle.bin') return '휴지통';
+  if (n === 'appdata') return '앱 데이터';
+  return '';
+}
+
+function renderCrumbs() {
+  const d = st.map.data;
+  $('#map-crumbs').hidden = !d;
+  if (!d) return;
+  $('#map-up').disabled = d.parentId < 0;
+  $('#map-path').innerHTML = d.crumbs.map((c, i) =>
+    (i ? '<i aria-hidden="true">›</i>' : '') + '<button data-node="' + c.id + '" title="' + esc(c.name) + '">' + esc(i === 0 ? (c.name.replace(/[\\/]+$/, '') || c.name) : c.name) + '</button>').join('');
+}
+
+function drawMap() {
+  const canvas = $('#map-canvas');
+  const list = $('#map-list');
+  if (!canvas || canvas.offsetParent === null) return;
+  const d = st.map.data;
+  const s = st.scan;
+  if (!d) {
+    st.map.rects = [];
+    const running = s && s.started && s.running;
+    canvas.innerHTML = '<div class="placeholder">' + (running
+      ? '<h2>분석하고 있어요</h2><p>드라이브가 크면 몇 분 걸릴 수 있어요. 끝나면 폴더 지도가 여기에 그려져요.</p>'
+      : '<h2>어떤 폴더가 공간을 차지하는지 지도로 보여드려요</h2><p>위에서 분석할 곳을 고르고 [분석 시작]을 누르세요. 큰 사각형일수록 공간을 많이 쓰는 폴더예요.</p>') + '</div>';
+    list.innerHTML = '';
+    return;
+  }
+  const node = d.node;
+  const W = canvas.clientWidth, H = canvas.clientHeight;
+  const items1 = itemsOf(node);
+  const pos1 = squarify(items1, 0, 0, W, H);
+  const rects = [];
+  const l1 = new Map();
+  let html = '';
+  items1.forEach((it, i) => {
+    const r = pos1[i];
+    if (!r) return;
+    const x0 = Math.round(r.x), y0 = Math.round(r.y);
+    const w = Math.round(r.x + r.w) - x0 - 2, h = Math.round(r.y + r.h) - y0 - 2;
+    if (w < 2 || h < 2) return;
+    const base = it.kind === 'dir' ? PALETTE[i % PALETTE.length] : it.kind === 'files' ? FILES_COLOR : MORE_COLOR;
+    it.color = base;
+    const itPath = it.kind === 'dir' ? joinP(d.path, it.name) : d.path;
+    const idx = rects.push({ it, level: 1, path: itPath }) - 1;
+    if (it.kind === 'dir') l1.set(it.node.id, idx);
+
+    // a folder that only holds one folder (Users > minji) is drawn one level deeper
+    let host = it.node, hostPath = itPath, chain = '';
+    if (it.kind === 'dir') {
+      for (let guard = 0; guard < 8; guard++) {
+        const only = itemsOf(host);
+        if (only.length === 1 && only[0].kind === 'dir' && only[0].node.kids && only[0].node.kids.length) {
+          host = only[0].node;
+          hostPath = joinP(hostPath, host.name);
+          chain += ' › ' + host.name;
+        } else break;
+      }
+    }
+    const header = w >= 54 && h >= 26;
+    const cls = 'tm l1 ' + it.kind + (it.kind === 'dir' ? '' : ' static');
+    html += '<div class="' + cls + '" data-i="' + idx + '" style="left:' + (x0 + 1) + 'px;top:' + (y0 + 1) + 'px;width:' + w + 'px;height:' + h + 'px;background-color:' + css(base) + ';color:' + textOn(base) + '">' +
+      (header ? '<span class="tm-h">' + esc(it.name + chain) + '<em class="num">' + fmtBytes(it.size) + '</em></span>' : '') + '</div>';
+
+    if (it.kind !== 'dir' || w <= 70 || h <= 56) return;
+    const items2 = itemsOf(host);
+    if (!(items2.length > 1 || (items2.length === 1 && items2[0].kind === 'dir'))) return;
+    const hh = header ? 22 : 3;
+    const pos2 = squarify(items2, x0 + 4, y0 + hh + 1, w - 6, h - hh - 3);
+    items2.forEach((it2, j) => {
+      const r2 = pos2[j];
+      if (!r2) return;
+      const a = Math.round(r2.x), b = Math.round(r2.y);
+      const w2 = Math.round(r2.x + r2.w) - a, h2 = Math.round(r2.y + r2.h) - b;
+      if (w2 < 3 || h2 < 3) return;
+      const col = it2.kind === 'more' ? mix(base, 0.62) : it2.kind === 'files' ? mix(base, 0.42) : mix(base, [0.14, 0.27, 0.40][j % 3]);
+      const idx2 = rects.push({ it: it2, level: 2, owner: host, color: col, path: it2.kind === 'dir' ? joinP(hostPath, it2.name) : hostPath }) - 1;
+      let label = '';
+      if (w2 >= 52 && h2 >= 32) label = '<span class="tm-l">' + esc(it2.name) + '<em class="num">' + fmtBytes(it2.size) + '</em></span>';
+      else if (w2 >= 40 && h2 >= 17) label = '<span class="tm-l">' + esc(it2.name) + '</span>';
+      html += '<div class="tm l2 ' + it2.kind + '" data-i="' + idx2 + '" style="left:' + a + 'px;top:' + b + 'px;width:' + w2 + 'px;height:' + h2 + 'px;background-color:' + css(col) + ';color:' + textOn(col) + '">' + label + '</div>';
+    });
+  });
+  canvas.innerHTML = html + '<div class="map-hl" hidden></div>';
+  st.map.rects = rects;
+  st.map.l1 = l1;
+  renderMapList(items1, node);
+}
+
+function renderMapList(items, node) {
+  const list = $('#map-list');
+  const total = Math.max(1, node.size);
+  list.innerHTML = items.map(it => {
+    const pct = it.size / total * 100;
+    const col = it.color || FILES_COLOR;
+    const tag = it.kind === 'dir' ? tagFor(it.name, it.node.kind) : '';
+    const sub = it.kind === 'dir' ? '파일 ' + fmtNum(it.node.files) + '개' : it.kind === 'files' ? '이 폴더에 바로 들어 있는 파일' : '목록에 다 못 그린 폴더';
+    return '<button class="m-row' + (it.kind === 'dir' ? '' : ' static') + '"' + (it.kind === 'dir' ? ' data-node="' + it.node.id + '"' : '') + '>' +
+      '<span class="sw" style="background:' + css(col) + '"></span>' +
+      '<span class="nm">' + esc(it.name) + (tag ? '<span class="tag">' + tag + '</span>' : '') + '</span>' +
+      '<span class="sz">' + fmtBytes(it.size) + '</span>' +
+      '<span class="bar"><span><i style="width:' + Math.max(0.5, pct).toFixed(1) + '%;background:' + css(col) + '"></i></span>' + (pct >= 1 ? Math.round(pct) : '<1') + '% · ' + sub + '</span>' +
+      '</button>';
+  }).join('') || '<p class="muted" style="padding:12px">이 폴더는 비어 있어요.</p>';
+}
+
+function renderMapFoot() {
+  const el = $('#map-foot');
+  const s = st.scan;
+  if (!s || !s.done || !s.summary) { el.innerHTML = ''; return; }
+  const m = s.summary;
+  const lines = [];
+  lines.push('<p>' + esc(s.root) + ' 안의 <b class="num">' + fmtBytes(m.total) + '</b>, 파일 <span class="num">' + fmtNum(m.files) + '</span>개를 ' + fmtDuration(s.elapsedMs) + ' 만에 분석했어요' + (s.cancelled ? ' (중간에 멈춰서 일부만 셌어요)' : '') + '.</p>');
+  if (m.denied > 0) {
+    lines.push('<p>접근 권한이 없는 폴더 ' + fmtNum(m.denied) + '개는 빼고 셌어요.' + (st.info && !st.info.admin ? ' <button class="link" data-admin>관리자 권한으로 다시 실행</button>' : '') + '</p>');
+  }
+  if (m.unaccounted > 1024 * 1024 * 1024) {
+    lines.push('<p>드라이브 사용량 중 <b class="num">' + fmtBytes(m.unaccounted) + '</b>는 폴더에서 찾지 못했어요. 시스템 복원 지점이나 권한이 없는 폴더일 수 있어요. <button class="link" data-tool="sysprotect">시스템 보호 설정 열기</button></p>');
+  }
+  if (m.cloudBytes > 0) lines.push('<p>OneDrive 온라인 전용 파일 ' + fmtBytes(m.cloudBytes) + '는 PC 공간을 쓰지 않아서 빼고 셌어요.</p>');
+  el.innerHTML = lines.join('');
+}
+
+function rectInfo(r) {
+  const it = r.it;
+  const d = st.map.data;
+  const total = Math.max(1, d.node.size);
+  let html = '<b>' + esc(it.kind === 'dir' ? it.name : (r.level === 2 ? r.owner.name + ' 안의 ' + it.name : it.name)) + '</b>';
+  html += '<div class="tp">' + esc(r.path) + '</div>';
+  html += '<div class="num">' + fmtBytes(it.size) + ', 지금 보는 폴더의 ' + (it.size / total * 100).toFixed(it.size / total < 0.1 ? 1 : 0) + '%' +
+    (it.kind === 'dir' ? ', 파일 ' + fmtNum(it.node.files) + '개' : '') + '</div>';
+  const hint = it.kind === 'dir' ? hintFor(it.name, it.node.kind) : it.kind === 'files' ? '폴더 안에 바로 들어 있는 파일들이에요. "큰 파일" 화면에서 하나씩 볼 수 있어요.' : '';
+  if (it.kind === 'dir' && it.node.denied) html += '<div class="th">접근 권한이 없어 일부만 셌어요.</div>';
+  else if (hint) html += '<div class="th">' + esc(hint) + '</div>';
+  return html;
+}
+function rectTarget(r) {
+  if (r.it.kind === 'dir') return r.it.node;
+  if (r.level === 2) return r.owner;
+  return null;
+}
+function highlightRect(idx) {
+  const hl = $('#map-canvas .map-hl');
+  if (!hl) return;
+  const el = idx == null ? null : $('#map-canvas .tm[data-i="' + idx + '"]');
+  if (!el) { hl.hidden = true; return; }
+  hl.style.left = el.offsetLeft + 'px';
+  hl.style.top = el.offsetTop + 'px';
+  hl.style.width = el.offsetWidth + 'px';
+  hl.style.height = el.offsetHeight + 'px';
+  hl.hidden = false;
+}
+
+// ================================================================ FILES
+async function loadFiles() {
+  const s = st.scan;
+  if (!s || !s.done) { renderFiles(); return; }
+  try {
+    st.files.data = await api('/api/scan/files?type=' + st.files.type + '&hideSystem=' + (st.files.hideSystem ? 1 : 0));
+    st.files.gen = s.gen;
+  } catch (e) { toast(e.message); }
+  renderFiles();
+}
+function arcPath(cx, cy, r0, r1, a0, a1) {
+  if (a1 - a0 >= Math.PI * 2 - 1e-4) a1 = a0 + Math.PI * 2 - 1e-4;
+  const large = a1 - a0 > Math.PI ? 1 : 0;
+  const p = (r, a) => (cx + r * Math.cos(a)).toFixed(2) + ',' + (cy + r * Math.sin(a)).toFixed(2);
+  return 'M' + p(r1, a0) + ' A' + r1 + ',' + r1 + ' 0 ' + large + ' 1 ' + p(r1, a1) + ' L' + p(r0, a1) + ' A' + r0 + ',' + r0 + ' 0 ' + large + ' 0 ' + p(r0, a0) + ' Z';
+}
+function renderFiles() {
+  const s = st.scan;
+  const data = st.files.data;
+  const ready = s && s.done && data && st.files.gen === s.gen;
+  $('#files-empty').hidden = !!ready || !!(s && s.started && s.running);
+  $('#files-wrap').hidden = !ready;
+  $('#files-scanbar').hidden = !!ready && !(s && s.running);
+  if (!ready) { $('#nav-files').textContent = ''; return; }
+
+  // donut
+  const types = data.types.map((t, i) => ({ i, bytes: t.bytes, files: t.files }));
+  const total = types.reduce((a, t) => a + t.bytes, 0) || 1;
+  let a = -Math.PI / 2, paths = '';
+  for (const t of types) {
+    if (t.bytes <= 0) continue;
+    const sweep = t.bytes / total * Math.PI * 2;
+    if (sweep < 0.004) { a += sweep; continue; }
+    const dim = st.files.type >= 0 && st.files.type !== t.i;
+    paths += '<path d="' + arcPath(110, 110, 64, 100, a, a + sweep) + '" fill="' + css(TYPES[t.i].color) + '" data-type="' + t.i + '" opacity="' + (dim ? 0.25 : 1) + '"><title>' + TYPES[t.i].name + ' ' + fmtBytes(t.bytes) + '</title></path>';
+    a += sweep;
+  }
+  const sel = st.files.type >= 0 ? types[st.files.type] : null;
+  paths += '<text x="110" y="104" text-anchor="middle" font-size="12" fill="#7D879A">' + esc(sel ? TYPES[sel.i].name : '분석한 전체') + '</text>';
+  paths += '<text x="110" y="126" text-anchor="middle" font-size="19" font-weight="600" fill="#18202E">' + fmtBytes(sel ? sel.bytes : total) + '</text>';
+  $('#donut').innerHTML = paths;
+
+  const sorted = types.filter(t => t.bytes > 0).sort((x, y) => y.bytes - x.bytes);
+  $('#legend').innerHTML = '<li><button data-type="-1" class="' + (st.files.type < 0 ? 'on' : '') + '"><span class="sw" style="background:#18202E"></span><span>전체 보기</span><span class="v">' + fmtBytes(total) + '</span></button></li>' +
+    sorted.map(t => '<li><button data-type="' + t.i + '" class="' + (st.files.type === t.i ? 'on' : '') + '"><span class="sw" style="background:' + css(TYPES[t.i].color) + '"></span><span>' + TYPES[t.i].name + '</span><span class="v">' + fmtBytes(t.bytes) + ' (' + Math.round(t.bytes / total * 100) + '%)</span></button></li>').join('');
+
+  // table
+  let files = data.files.slice();
+  if (st.files.sort === 'date') files.sort((x, y) => x.mtime - y.mtime);
+  const title = st.files.type >= 0 ? TYPES[st.files.type].name + ' 중 큰 파일' : '가장 큰 파일';
+  $('#files-title').textContent = title + ' ' + files.length + '개';
+  $('#hide-system').closest('label').hidden = st.files.type >= 0;
+  for (const b of $$('.ftable th button')) b.classList.toggle('on', b.dataset.sort === st.files.sort);
+  $('#files-body').innerHTML = files.map((f, i) => {
+    const age = ageText(f.mtime);
+    return '<tr data-fi="' + i + '"><td class="c-name"><b title="' + esc(f.name) + '"><i class="sw-dot" style="background:' + css(TYPES[f.type] ? TYPES[f.type].color : FILES_COLOR) + '"></i>' + esc(f.name) + (age ? '<i class="old-tag">' + age + '</i>' : '') + '</b>' +
+      '<span class="dir" title="' + esc(f.dir) + '">' + esc(shortPath(f.dir, 80)) + '</span></td>' +
+      '<td class="c-size">' + fmtBytes(f.size) + '</td><td class="c-date">' + fmtDate(f.mtime) + '</td>' +
+      '<td class="c-act"><button class="link" data-file="' + i + '">위치 열기</button></td></tr>';
+  }).join('') || '<tr><td colspan="4" class="muted">해당하는 파일이 없어요.</td></tr>';
+  st.files.shownList = files;
+  $('#nav-files').textContent = '';
+}
+
+// ================================================================ DUPES
+async function startDupes() {
+  const root = $('#dupe-root').value.trim();
+  if (!root) { toast('검사할 폴더를 입력하세요.'); return; }
+  try {
+    await api('/api/dupes/start', { root, minSize: +$('#dupe-min').value, skipAppData: $('#dupe-skipapp').checked });
+  } catch (e) { toast(e.message); return; }
+  st.dupes.shown = 40;
+  pollDupes();
+}
+let dupeTimer = 0;
+async function pollDupes() {
+  clearTimeout(dupeTimer);
+  let r;
+  try { r = await api('/api/dupes'); } catch (e) { dupeTimer = setTimeout(pollDupes, 1500); return; }
+  st.dupes.status = r.started ? r.status : null;
+  renderDupes();
+  if (r.started && r.status.running) dupeTimer = setTimeout(pollDupes, 450);
+}
+function renderDupes() {
+  const s = st.dupes.status;
+  const running = !!(s && s.running);
+  $('#dupe-start').hidden = running;
+  $('#dupe-stop').hidden = !running;
+  $('#dupe-root').disabled = running;
+  const prog = $('#dupe-progress');
+  prog.hidden = !running;
+  if (running) {
+    let text, pct = -1;
+    if (s.phase <= 1) text = '파일 목록을 만드는 중이에요. 후보 파일 ' + fmtNum(s.listed) + '개';
+    else if (s.phase === 2) { pct = s.toHash ? s.hashed / s.toHash * 100 : -1; text = '크기가 같은 파일을 빠르게 비교하는 중이에요 (' + fmtNum(s.hashed) + ' / ' + fmtNum(s.toHash) + ')'; }
+    else { pct = s.toHash ? s.hashed / s.toHash * 100 : -1; text = '내용이 끝까지 같은지 확인하는 중이에요 (' + fmtBytes(s.hashed) + ' / ' + fmtBytes(s.toHash) + ')'; }
+    prog.innerHTML = '<div class="p-track' + (pct < 0 ? ' indet' : '') + '"><div class="p-fill" style="width:' + Math.max(1, pct) + '%"></div></div>' +
+      '<div class="p-text"><span>' + text + '</span><span class="num">' + fmtDuration(s.elapsedMs) + '</span></div>' +
+      '<div class="p-cur">' + esc(s.current) + '</div>';
+  }
+  const out = $('#dupe-result');
+  $('#nav-dupes').textContent = s && s.done && s.wasted > 0 ? fmtBytes(s.wasted) : '';
+  if (!s || running) { out.innerHTML = s ? '' : '<div class="empty"><h2>중복 파일을 찾아볼까요?</h2><p>폴더를 고르고 [중복 찾기]를 누르세요. 사진이나 동영상, 설치 파일이 여러 번 저장돼 있는 경우가 많아요.</p></div>'; return; }
+  if (s.error) { out.innerHTML = '<p class="notice">' + esc(s.error) + '</p>'; return; }
+  const groups = s.groups || [];
+  if (!groups.length) {
+    out.innerHTML = '<div class="empty"><h2>' + (s.cancelled ? '검사를 멈췄어요' : '똑같은 파일을 찾지 못했어요') + '</h2><p>' + (s.cancelled ? '다시 [중복 찾기]를 누르면 처음부터 검사해요.' : '이 폴더에는 내용이 같은 파일이 없어요. 최소 크기를 낮추거나 다른 폴더를 검사해 보세요.') + '</p></div>';
+    return;
+  }
+  let html = '<p class="dupe-sum">하나만 남기면 <span class="num" style="display:inline;font-size:inherit;color:inherit;font-weight:600">' + fmtBytes(s.wasted) + '</span>를 아낄 수 있어요' +
+    '<span>똑같은 파일 묶음 ' + fmtNum(s.groupCount) + '개를 ' + fmtDuration(s.elapsedMs) + ' 만에 찾았어요. 묶음마다 가장 오래된 파일이 맨 위에 있어요.' + (s.groupCount > groups.length ? ' (낭비가 큰 ' + fmtNum(groups.length) + '개만 보여드려요)' : '') + '</span></p>';
+  html += groups.slice(0, st.dupes.shown).map((g, gi) =>
+    '<div class="dgroup"><div class="dg-head"><b title="' + esc(g.files[0].name) + '">' + esc(g.files[0].name) + '</b><span>' + fmtBytes(g.size) + ' × ' + g.count + '개, 아낄 수 있는 공간 <strong>' + fmtBytes(g.wasted) + '</strong></span></div>' +
+    g.files.map((f, fi) => '<div class="dfile"><span class="dp" title="' + esc(f.path) + '">' + esc(shortPath(f.path, 96)) + '</span><span class="dd">' + fmtDate(f.mtime) + '</span><span class="dt">' + (fi === 0 ? '가장 오래된 것' : '') + '</span><button class="link" data-dupe="' + gi + ':' + fi + '">위치 열기</button></div>').join('') +
+    '</div>').join('');
+  if (groups.length > st.dupes.shown) html += '<p><button class="btn" id="dupe-more">' + Math.min(40, groups.length - st.dupes.shown) + '개 더 보기</button></p>';
+  out.innerHTML = html;
+}
+
+// ================================================================ events
+function bind() {
+  for (const b of $$('.nav button')) b.addEventListener('click', () => switchView(b.dataset.view));
+  $('#junk-rescan').addEventListener('click', startJunk);
+  $('#junk-filters').addEventListener('click', e => {
+    const b = e.target.closest('[data-filter]');
+    if (!b) return;
+    st.junkFilter = b.dataset.filter;
+    renderJunk();
+  });
+  $('#junk-list').addEventListener('click', e => {
+    const head = e.target.closest('.f-head');
+    if (head) toggleFinding(head.closest('.finding'));
+  });
+  $('#gauge').addEventListener('click', e => {
+    const seg = e.target.closest('[data-cat]');
+    if (!seg) return;
+    const id = seg.dataset.cat;
+    st.junkFilter = 'all'; st.open.add(id); st.junkSig = '';
+    renderJunk();
+    const li = $('.finding[data-id="' + CSS.escape(id) + '"]');
+    if (li) li.scrollIntoView({ behavior: 'smooth', block: 'center' });
+  });
+  $('#gauge').addEventListener('mousemove', e => {
+    const seg = e.target.closest('[data-cat]');
+    if (!seg) { hideTip(); return; }
+    const c = visibleCats().find(x => x.id === seg.dataset.cat);
+    if (!c) return;
+    showTip('<b>' + esc(c.name) + '</b><div class="num">' + fmtBytes(c.bytes) + '</div><div class="th" style="color:#C8D2E3">' + SAFETY[c.safety].long + '. 눌러서 자세히 보기</div>', e.clientX, e.clientY);
+  });
+  $('#gauge').addEventListener('mouseleave', hideTip);
+
+  for (const sel of $$('.js-target')) sel.addEventListener('change', () => onTargetChange(sel));
+  for (const b of $$('.js-start')) b.addEventListener('click', () => startScan());
+  for (const b of $$('.js-stop')) b.addEventListener('click', () => api('/api/scan/cancel', {}).catch(e => toast(e.message)));
+  $('#drives').addEventListener('click', e => {
+    const b = e.target.closest('[data-drive]');
+    if (!b) return;
+    switchView('map');
+    const s = st.scan;
+    if (s && s.started && normP(s.root) === normP(b.dataset.drive) && (s.running || s.done)) return;
+    if (s && s.running) { st.target = b.dataset.drive; fillTargets(); return; }
+    startScan(b.dataset.drive);
+  });
+
+  // map interactions
+  const canvas = $('#map-canvas');
+  canvas.addEventListener('mousemove', e => {
+    const el = e.target.closest('.tm');
+    if (!el) { hideTip(); highlightRect(null); return; }
+    const r = st.map.rects[+el.dataset.i];
+    if (!r) return;
+    if (st.map.hover !== el.dataset.i) { st.map.hover = el.dataset.i; highlightRect(el.dataset.i); }
+    showTip(rectInfo(r), e.clientX, e.clientY);
+  });
+  canvas.addEventListener('mouseleave', () => { hideTip(); highlightRect(null); st.map.hover = null; });
+  canvas.addEventListener('click', e => {
+    const el = e.target.closest('.tm');
+    if (!el) return;
+    const t = rectTarget(st.map.rects[+el.dataset.i]);
+    if (t) { hideTip(); openNode(t.id).catch(err => toast(err.message)); }
+  });
+  canvas.addEventListener('contextmenu', e => {
+    const el = e.target.closest('.tm');
+    if (!el) return;
+    e.preventDefault();
+    hideTip();
+    const r = st.map.rects[+el.dataset.i];
+    const t = rectTarget(r);
+    const items = [];
+    if (t) items.push({ label: '이 폴더로 들어가기', action: () => openNode(t.id).catch(err => toast(err.message)) });
+    const folder = r.path;
+    items.push({ label: '탐색기에서 열기', action: () => openPath(folder) });
+    items.push({ label: '경로 복사', action: () => copyText(folder) });
+    if (st.map.data.parentId >= 0) items.push({ label: '상위 폴더로', action: () => openNode(st.map.data.parentId) });
+    showMenu(e.clientX, e.clientY, items);
+  });
+  $('#map-list').addEventListener('click', e => {
+    const b = e.target.closest('[data-node]');
+    if (b) openNode(+b.dataset.node).catch(err => toast(err.message));
+  });
+  $('#map-list').addEventListener('mouseover', e => {
+    const b = e.target.closest('[data-node]');
+    highlightRect(b ? st.map.l1.get(+b.dataset.node) : null);
+  });
+  $('#map-list').addEventListener('mouseleave', () => highlightRect(null));
+  $('#map-path').addEventListener('click', e => {
+    const b = e.target.closest('[data-node]');
+    if (b) openNode(+b.dataset.node).catch(err => toast(err.message));
+  });
+  $('#map-up').addEventListener('click', () => { const d = st.map.data; if (d && d.parentId >= 0) openNode(d.parentId); });
+  $('#map-explorer').addEventListener('click', () => { const d = st.map.data; if (d) openPath(d.path); });
+
+  // files interactions
+  $('#legend').addEventListener('click', e => {
+    const b = e.target.closest('[data-type]');
+    if (!b) return;
+    st.files.type = +b.dataset.type;
+    loadFiles();
+  });
+  $('#donut').addEventListener('click', e => {
+    const p = e.target.closest('[data-type]');
+    if (!p) return;
+    const t = +p.dataset.type;
+    st.files.type = st.files.type === t ? -1 : t;
+    loadFiles();
+  });
+  $('#hide-system').addEventListener('change', e => { st.files.hideSystem = e.target.checked; loadFiles(); });
+  $('.ftable thead').addEventListener('click', e => {
+    const b = e.target.closest('[data-sort]');
+    if (!b) return;
+    st.files.sort = b.dataset.sort;
+    renderFiles();
+  });
+  $('#files-body').addEventListener('click', e => {
+    const b = e.target.closest('[data-file]');
+    if (!b) return;
+    const f = st.files.shownList[+b.dataset.file];
+    if (f) openPath(joinP(f.dir, f.name), true);
+  });
+  $('#files-body').addEventListener('contextmenu', e => {
+    const tr = e.target.closest('[data-fi]');
+    if (!tr) return;
+    e.preventDefault();
+    const f = st.files.shownList[+tr.dataset.fi];
+    const full = joinP(f.dir, f.name);
+    showMenu(e.clientX, e.clientY, [
+      { label: '위치 열기', action: () => openPath(full, true) },
+      { label: '폴더 지도에서 보기', action: () => { switchView('map'); openNode(f.dirId).catch(err => toast(err.message)); } },
+      { label: '경로 복사', action: () => copyText(full) },
+    ]);
+  });
+
+  // dupes
+  $('#dupe-start').addEventListener('click', startDupes);
+  $('#dupe-stop').addEventListener('click', () => api('/api/dupes/cancel', {}).catch(e => toast(e.message)));
+  $('#dupe-pick').addEventListener('click', async () => {
+    try { const r = await api('/api/pickfolder'); if (r.path) $('#dupe-root').value = r.path; } catch (e) { toast(e.message); }
+  });
+  $('#dupe-result').addEventListener('click', e => {
+    if (e.target.id === 'dupe-more') { st.dupes.shown += 40; renderDupes(); return; }
+    const b = e.target.closest('[data-dupe]');
+    if (!b) return;
+    const [gi, fi] = b.dataset.dupe.split(':').map(Number);
+    const f = st.dupes.status.groups[gi].files[fi];
+    openPath(f.path, true);
+  });
+
+  // global
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#menu')) hideMenu();
+    const o = e.target.closest('[data-open]');
+    if (o) { openPath(o.dataset.open, o.dataset.select === '1'); return; }
+    const t = e.target.closest('[data-tool]');
+    if (t && !t.closest('#gauge')) { launch(t.dataset.tool); return; }
+    if (e.target.closest('[data-admin]')) relaunchAdmin();
+  });
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') { hideMenu(); hideTip(); }
+    if (e.key === 'Backspace' && st.view === 'map' && !/INPUT|SELECT|TEXTAREA/.test(document.activeElement.tagName)) {
+      const d = st.map.data;
+      if (d && d.parentId >= 0) { e.preventDefault(); openNode(d.parentId); }
+    }
+  });
+  $('#main').addEventListener('scroll', () => { hideTip(); hideMenu(); });
+  let resizeRaf = 0;
+  const onResize = () => {
+    cancelAnimationFrame(resizeRaf);
+    resizeRaf = requestAnimationFrame(() => { if (st.view === 'map') drawMap(); if (st.view === 'junk') renderGauge(); });
+  };
+  addEventListener('resize', onResize);
+  if (window.ResizeObserver) new ResizeObserver(onResize).observe($('#map-canvas'));
+}
+
+async function init() {
+  bind();
+  // a file dropped on the window must not replace the page
+  addEventListener('dragover', e => e.preventDefault());
+  addEventListener('drop', e => e.preventDefault());
+  try { st.info = await api('/api/info'); } catch (e) { toast(e.message); }
+  if (st.info) {
+    $('#version').textContent = '버전 ' + st.info.version;
+    $('#dupe-root').value = st.info.profile || '';
+    $('#dupe-pick').hidden = !st.info.canPick;
+  }
+  renderDrives();
+  renderAdmin();
+  fillTargets();
+  renderDupes();
+  drawMap();
+  startJunk();
+  pollScan();
+  pollDupes();
+  const ping = () => api('/api/ping', {}).catch(() => {});
+  ping();
+  setInterval(ping, 5000);
+  addEventListener('pagehide', () => { try { navigator.sendBeacon('/api/bye?t=' + encodeURIComponent(TOKEN), ''); } catch (e) { /* ignore */ } });
+}
+init();
+</script>
+</body>
+</html>
