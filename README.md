@@ -23,6 +23,7 @@ Go로 작성했고, 화면은 HTML/JS로 만들어 WebView2 창(없으면 Edge �
 | `winres/` | 아이콘 생성 스크립트, 앱 매니페스트 |
 | `rsrc_windows_amd64.syso` | exe에 들어가는 아이콘·매니페스트·버전 정보 (빌드 시 자동 포함) |
 | `third_party/` | 의존성 사본: `golang.org/x/sys`, `github.com/wailsapp/go-webview2` |
+| `installer/` | 설치 파일 스크립트(NSIS), 설치 화면 그림과 그 생성 스크립트 |
 
 `third_party/go-webview2/pkg/edge/chromium.go`의 `errorCallback`은 한 군데 고쳤습니다.
 원본은 오류가 나면 무조건 프로그램을 끄는데, 창이 뜬 뒤의 사소한 오류(크기 조절 실패 등)로는 꺼지지 않게 했습니다.
@@ -44,6 +45,29 @@ GOOS=windows GOARCH=amd64 CGO_ENABLED=0 go build -trimpath -ldflags "-s -w -H=wi
 ```
 
 테스트는 리눅스·맥에서 `go test .`로 돌립니다.
+
+## 설치 파일 만들기
+
+`installer/installer.nsi`로 Windows 설치 파일 `build/용량탐정_설치_v<버전>.exe`를 만듭니다.
+[NSIS 3](https://nsis.sourceforge.io)이 필요합니다. `build.sh`는 `makensis`가 있으면 설치 파일까지 만듭니다.
+
+Windows (PowerShell, 이 폴더에서):
+
+```powershell
+go build -trimpath -ldflags "-s -w -H=windowsgui" -o build\용량탐정.exe .
+makensis /INPUTCHARSET UTF8 installer\installer.nsi
+```
+
+리눅스·맥에서는 `bash build.sh`를 실행하면 됩니다.
+
+설치 파일이 하는 일:
+
+- 관리자 권한 없이 지금 계정에 설치합니다 (`%LOCALAPPDATA%\Programs\용량 탐정`).
+- 시작 메뉴 바로 가기를 만들고, 마지막 화면에서 바탕 화면 바로 가기와 바로 실행을 고를 수 있습니다.
+- Windows 설정 > 앱 목록에 등록되어 거기서 제거할 수 있습니다. 제거하면 기록·캐시 폴더(`%LOCALAPPDATA%\DiskDetective`)도 함께 지웁니다.
+- 프로그램이 실행 중이면 닫을 때까지 기다린 뒤 덮어쓰거나 지웁니다.
+- 버전은 `main.go`의 `appVersion`에서 읽습니다.
+- 설치 화면 그림 `installer/wizard.bmp`는 `installer/make_wizard.py`로 그립니다 (`bash build.sh --resources`).
 
 ## 실행 옵션
 
